@@ -299,6 +299,10 @@ def per_probe(results):
     return {k: dict(v, rate=v["stale"] / v["n"]) for k, v in out.items()}
 
 
+MIGRATION_RE = re.compile(r"\binstead\b|\breplac(e|ed|ement)\b|\buse (the )?`|\bmigrat", re.I)
+STALE_ADVICE_RE = re.compile(r"still (continue to )?work|is now deprecated\. it will", re.I)
+
+
 def release_sections(text):
     """Split a changelog into release sections, in document order (newest first in practice).
     A release heading is a level-1/2 heading that contains a version number or 'Unreleased'."""
@@ -328,11 +332,17 @@ def draft_context(lib, results, changelog_text):
     lines = []
     for h in sorted(hit):
         word = re.compile(r"\b%s\b" % re.escape(h.split(".")[-1]))
+        newest = None
         for section in release_sections(changelog_text):
             found = [line for _, line, _ in changelog_entries(section) if word.search(line)]
-            if found:
+            if found and newest is None:
+                newest = found
                 lines += [line for line in found if line not in lines]
-                break
+            elif found:
+                # Older lines only if they say what to use *instead*: "removed" alone doesn't tell a model
+                # what to write. Superseded "it still works" advice is never included.
+                lines += [line for line in found if MIGRATION_RE.search(line) and not STALE_ADVICE_RE.search(line)
+                          and line not in lines]
     if not lines:
         return None
     return "# %s: API changes that AI assistants get wrong\n\n%s\n" % (lib["name"], "\n".join(

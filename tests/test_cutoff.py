@@ -275,6 +275,7 @@ class TestSnippetUsesOnlyTheNewestRelease(unittest.TestCase):
         ctx = cutoff.draft_context(lib, results_, self.HTTPX_LIKE)
         self.assertIn("The deprecated `proxies` argument has now been removed.", ctx)
         self.assertIn("`verify` argument as a string argument is now deprecated", ctx)
+        self.assertIn("use the `proxy` argument instead of the deprecated `proxies`", ctx)   # the replacement
         self.assertNotIn("still continue to work", ctx)
         self.assertNotIn("Switched to `proxies=httpx.Proxy", ctx)
 
