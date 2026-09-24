@@ -103,6 +103,7 @@ cutoff run --model claude:haiku -k 10 --ci                # every release: exit 
 
 ## Honest limits
 
+- **Warnings:** `DeprecationWarning`, `PendingDeprecationWarning` and `FutureWarning` are all errors in the generated program. A library that signals deprecation some other way (a log line, a custom exception) needs that listed in `removed`.
 - **Python libraries only** for now. JS/TS needs its own isolation, so it gets its own version rather than a half-working one here.
 - The network block covers Python sockets, not subprocesses a program might spawn. It's a guard against accidents, not a security sandbox. Don't point cutoff at models you don't trust with code execution on your machine.
 - A `removed-api` verdict needs the symbol in your `removed` list; unlisted breakages show up as `crash` or `wrong`.

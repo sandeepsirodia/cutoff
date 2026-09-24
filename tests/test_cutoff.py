@@ -196,7 +196,8 @@ class TestCleanRoom(unittest.TestCase):
     def test_claude_runs_without_user_settings(self):
         from unittest import mock
         seen = {}
-        fake_run = lambda cmd, **k: seen.setdefault("cmd", cmd) and mock.Mock(stdout='{"result": ""}')  # noqa: E731
+        fake_run = lambda cmd, **k: seen.setdefault("cmd", cmd) and mock.Mock(  # noqa: E731
+            stdout='{"result": ""}', stderr="", returncode=0)
         with mock.patch.object(cutoff.subprocess, "run", fake_run), mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
             cutoff.Model("claude:haiku").ask("p", 5, 0)
         self.assertIn("--setting-sources", seen["cmd"])
@@ -204,10 +205,53 @@ class TestCleanRoom(unittest.TestCase):
         self.assertIn("--tools", seen["cmd"])
 
 
+class TestOutagesAreNotStaleness(unittest.TestCase):
+    """Regression from the first real run: a session limit came back as text, was executed as Python,
+    raised SyntaxError, and 40 of 45 samples were recorded as 'crash'."""
+
+    LIMIT = "%s -c \"import sys; print('You have hit your session limit, resets 5:10pm'); sys.exit(1)\"" % shlex.quote(sys.executable)
+
+    def test_rate_limit_stops_the_run(self):
+        code, out = cli(make_repo(), "run", "--model", "limited=cmd:" + self.LIMIT, "-k", "2")
+        self.assertEqual(code, 3)
+        self.assertIn("Stopped", out)
+        self.assertNotIn("Stale-API rate", out)
+
+    def test_prose_is_not_executed_as_code(self):
+        prose = "%s -c \"print('Sorry, I cannot help with that.')\"" % shlex.quote(sys.executable)
+        r = results(make_repo(), "chatty=cmd:" + prose)
+        self.assertEqual({x["status"] for x in r}, {"no-code"})
+
+    def test_unscored_samples_are_excluded_from_rates_and_flagged(self):
+        script = ("import os; k = int(os.environ['CUTOFF_SAMPLE']); "
+                  "print('```python\\n' + %r + '```') if k < 2 else print('no code here')" % STALE_KW)
+        model = "half=cmd:%s -c %s" % (shlex.quote(sys.executable), shlex.quote(script))
+        code, out = cli(make_repo(), "run", "--model", model, "-k", "4")
+        self.assertIn("100%  (2/2", out)                       # 2 scored samples, both stale; the 2 prose ones don't dilute it
+        self.assertIn("2 more sample(s) errored or returned no code", out)
+
+    def test_missing_model_command_is_an_outage(self):
+        code, out = cli(make_repo(), "run", "--model", "ghost=cmd:definitely-not-a-command-xyz", "-k", "1")
+        self.assertEqual(code, 3)
+
+    def test_future_warning_counts_as_deprecated(self):
+        repo = make_repo()
+        with open(os.path.join(repo, "src", "fixturelib", "__init__.py"), "a") as f:
+            f.write('\n\ndef old_style():\n    warnings.warn("old_style is deprecated", FutureWarning, stacklevel=2)\n    return 1\n')
+        cfg = CONFIG.replace('deprecated = ["legacy_mode"]', 'deprecated = ["old_style"]').replace(
+            'assert solution.result["timeout"] == 5', 'assert solution.result["timeout"] == 5\nassert solution.other == 1')
+        with open(os.path.join(repo, "cutoff.toml"), "w") as f:
+            f.write(cfg)
+        code_ = 'import fixturelib\nresult = fixturelib.connect("db", timeout=5)\nother = fixturelib.old_style()\n'
+        self.assertEqual(results(repo, fake("pandasish", code_))[0]["status"], "deprecated-api")
+
+
 class TestUnits(unittest.TestCase):
     def test_extract_code(self):
         self.assertEqual(cutoff.extract_code("Here:\n```python\nx = 1\n```\nDone."), "x = 1\n")
         self.assertEqual(cutoff.extract_code("x = 2\n"), "x = 2\n")
+        self.assertIsNone(cutoff.extract_code("You've hit your session limit · resets 5:10pm"))
+        self.assertIsNone(cutoff.extract_code("   \n"))
 
     def test_changelog_entries(self):
         kinds = [(k, s) for k, _, s in cutoff.changelog_entries(CHANGELOG)]

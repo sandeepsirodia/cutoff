@@ -6,6 +6,7 @@ removed or deprecated APIs. `cutoff fix` drafts a context snippet from your chan
 failing probes to prove it helps. Python libraries; standard library only (Python 3.11+ for tomllib).
 """
 import argparse
+import ast
 import json
 import math
 import os
@@ -22,6 +23,18 @@ CONFIG = "cutoff.toml"
 BASELINE = "cutoff-baseline.json"
 CONTEXT = "cutoff-context.md"
 STALE = ("removed-api", "deprecated-api")
+# A model that never answered says nothing about what it knows. Such samples are excluded from every rate.
+UNSCORED = ("model-error", "no-code")
+RATE_LIMIT_RE = re.compile(r"session limit|usage limit|rate.?limit|too many requests|\b429\b|overloaded|"
+                           r"quota|credit balance|resets? (at )?\d", re.I)
+
+
+class ModelError(RuntimeError):
+    """The model call itself failed (limit, outage, CLI missing)."""
+
+
+class ModelUnavailable(ModelError):
+    """A limit or outage: stop the whole run instead of recording garbage."""
 
 PROMPT = """Write a complete, self-contained Python module named solution.py that uses the `{lib}` library \
 (assume the latest released version is installed) to do the following:
@@ -118,8 +131,15 @@ def draft_config(lib_name, changelog_text):
 # ------------------------------------------------------------------ running generated code
 
 def extract_code(text):
+    """The model's code, or None if it didn't write any (prose, an error message, a refusal)."""
     blocks = re.findall(r"```(?:python|py)?\s*\n(.*?)```", text, re.S)
-    return max(blocks, key=len) if blocks else text
+    if blocks:
+        return max(blocks, key=len)
+    try:
+        ast.parse(text)
+    except SyntaxError:
+        return None
+    return text if text.strip() else None
 
 
 def run_program(repo, lib, code, check, timeout):
@@ -136,7 +156,9 @@ def run_program(repo, lib, code, check, timeout):
         paths = [site, d] + [os.path.join(repo, p) for p in lib["python_path"]]
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(paths), PYTHONDONTWRITEBYTECODE="1")
         python = lib.get("_python", sys.executable)
-        p = subprocess.Popen([python, "-W", "error::DeprecationWarning", "check.py"], cwd=d, env=env,
+        # DeprecationWarning is for developers; libraries such as pandas use FutureWarning for end users.
+        p = subprocess.Popen([python, "-W", "error::DeprecationWarning", "-W", "error::FutureWarning",
+                              "-W", "error::PendingDeprecationWarning", "check.py"], cwd=d, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
         try:
             _, err = p.communicate(timeout=timeout)
@@ -155,7 +177,7 @@ def classify(stderr, lib, code):
     frames = re.findall(r'File ".*?solution\.py", line (\d+)', stderr)
     src = code.splitlines()
     stale_line = src[int(frames[-1]) - 1].strip() if frames and int(frames[-1]) <= len(src) else None
-    if "DeprecationWarning" in last:
+    if re.search(r"(Pending)?DeprecationWarning|FutureWarning", last):
         return "deprecated-api", last, stale_line
     if re.match(r"(AttributeError|ImportError|ModuleNotFoundError|TypeError|NameError)", last):
         for sym in lib["removed"] + lib["deprecated"]:
@@ -186,15 +208,34 @@ class Model:
             cmd = ["claude", "-p", prompt, "--tools", "", "--output-format", "json", "--no-session-persistence",
                    *(["--bare"] if os.environ.get("ANTHROPIC_API_KEY") else ["--setting-sources", ""])]
             cmd += ["--model", self.arg] if self.arg else []
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
             try:
-                return json.loads(r.stdout).get("result", "")
-            except ValueError:
-                return ""
+                r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            except OSError as e:
+                raise ModelUnavailable("could not start claude: %s" % e) from e
+            try:
+                data = json.loads(r.stdout)
+            except ValueError as e:
+                raise ModelError("claude returned no JSON (exit %s): %s" % (r.returncode, (r.stderr or r.stdout)[:200])) from e
+            if data.get("is_error") or r.returncode != 0:
+                msg = str(data.get("result") or r.stderr or "claude failed")[:300]
+                raise (ModelUnavailable if RATE_LIMIT_RE.search(msg) else ModelError)("%s: %s" % (self.name, msg))
+            return data.get("result", "")
         env = dict(os.environ, CUTOFF_PROMPT=prompt, CUTOFF_SAMPLE=str(sample))
         with tempfile.TemporaryDirectory(prefix="cutoff-model-") as d:
-            r = subprocess.run(["sh", "-c", self.arg], cwd=d, env=env, capture_output=True, text=True, timeout=timeout)
-        return r.stdout
+            p = subprocess.Popen(["sh", "-c", self.arg], cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, start_new_session=True)
+            try:
+                out, err = p.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(p.pid, signal.SIGKILL)   # the whole group: model scripts spawn children
+                p.communicate()
+                raise ModelError("%s: timed out after %ss" % (self.name, timeout)) from None
+        if p.returncode == 127:
+            raise ModelUnavailable("%s: command not found: %s" % (self.name, err.strip()[:200]))
+        if p.returncode != 0:
+            msg = (err.strip() or out.strip())[:300] or "exit %s" % p.returncode
+            raise (ModelUnavailable if RATE_LIMIT_RE.search(err + out) else ModelError)("%s: %s" % (self.name, msg))
+        return out
 
 
 # ------------------------------------------------------------------ stats (vendored from lucky)
@@ -223,9 +264,14 @@ def probe_all(repo, lib, probes, models, samples, timeout, context=None, only=No
                          PROMPT.format(lib=lib["name"], task=p["task"])
                 try:
                     code = extract_code(m.ask(prompt, timeout, k))
-                    status, detail, line = run_program(repo, lib, code, p["check"], timeout)
-                except subprocess.TimeoutExpired:
-                    status, detail, line = "crash", "model timed out", None
+                    if code is None:
+                        status, detail, line = "no-code", "the model returned no Python code", None
+                    else:
+                        status, detail, line = run_program(repo, lib, code, p["check"], timeout)
+                except ModelUnavailable:
+                    raise
+                except (ModelError, subprocess.TimeoutExpired) as e:
+                    status, detail, line = "model-error", str(e)[:200], None
                 results.append({"probe": p["id"], "model": m.name, "sample": k, "status": status,
                                 "detail": detail, "stale_line": line})
     return results
@@ -234,15 +280,19 @@ def probe_all(repo, lib, probes, models, samples, timeout, context=None, only=No
 def stale_rates(results):
     out = {}
     for m in sorted({r["model"] for r in results}):
-        rs = [r for r in results if r["model"] == m]
+        rs = [r for r in results if r["model"] == m and r["status"] not in UNSCORED]
+        skipped = sum(r["model"] == m and r["status"] in UNSCORED for r in results)
         k = sum(r["status"] in STALE for r in rs)
-        out[m] = {"stale": k, "n": len(rs), "rate": k / len(rs), "ci": wilson(k, len(rs))}
+        out[m] = {"stale": k, "n": len(rs), "skipped": skipped, "rate": k / len(rs) if rs else None,
+                  "ci": wilson(k, len(rs))}
     return out
 
 
 def per_probe(results):
     out = {}
     for r in results:
+        if r["status"] in UNSCORED:
+            continue
         d = out.setdefault(r["probe"], {"stale": 0, "n": 0})
         d["n"] += 1
         d["stale"] += r["status"] in STALE
@@ -280,9 +330,13 @@ def read_changelog(repo):
 def report(results, out):
     rates = stale_rates(results)
     out.write("Stale-API rate (removed or deprecated calls), by model:\n")
-    for m, r in sorted(rates.items(), key=lambda kv: -kv[1]["rate"]):
-        out.write("  %-22s %3.0f%%  (%d/%d, 95%% CI %.0f–%.0f%%)\n" % (
-            m, 100 * r["rate"], r["stale"], r["n"], 100 * r["ci"][0], 100 * r["ci"][1]))
+    for m, r in sorted(rates.items(), key=lambda kv: -(kv[1]["rate"] if kv[1]["rate"] is not None else -1)):
+        if r["rate"] is None:
+            out.write("  %-22s no scored samples (%d call(s) errored or returned no code)\n" % (m, r["skipped"]))
+            continue
+        out.write("  %-22s %3.0f%%  (%d/%d, 95%% CI %.0f–%.0f%%)%s\n" % (
+            m, 100 * r["rate"], r["stale"], r["n"], 100 * r["ci"][0], 100 * r["ci"][1],
+            "  ⚠ %d more sample(s) errored or returned no code and are excluded" % r["skipped"] if r["skipped"] else ""))
     probes = sorted({r["probe"] for r in results})
     models = sorted(rates)
     out.write("\n| Probe | " + " | ".join(models) + " |\n|---|" + "---|" * len(models) + "\n")
@@ -290,7 +344,8 @@ def report(results, out):
         cells = []
         for m in models:
             rs = [r for r in results if r["probe"] == p and r["model"] == m]
-            cells.append("%d/%d stale" % (sum(r["status"] in STALE for r in rs), len(rs)) if rs else "—")
+            scored = [r for r in rs if r["status"] not in UNSCORED]
+            cells.append("%d/%d stale" % (sum(r["status"] in STALE for r in scored), len(scored)) if scored else "—")
         out.write("| %s | %s |\n" % (p, " | ".join(cells)))
     worst = [r for r in results if r["status"] in STALE and r["stale_line"]]
     if worst:
@@ -372,6 +427,15 @@ def main(argv=None, out=None):
 
 
 def _run_or_fix(a, repo, lib, probes, models, out):
+    try:
+        return _run_or_fix_inner(a, repo, lib, probes, models, out)
+    except ModelUnavailable as e:
+        out.write("\nStopped: %s\nNo results were recorded. A limit or outage says nothing about what the model knows; "
+                  "wait, fix the cause, and run again.\n" % e)
+        return 3
+
+
+def _run_or_fix_inner(a, repo, lib, probes, models, out):
     results = probe_all(repo, lib, probes, models, a.samples, a.timeout)
 
     if a.cmd == "run":
