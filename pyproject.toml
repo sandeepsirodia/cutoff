@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cutoff"
+version = "0.1.0"
+description = "Does the model know your library, or the version from 2024? Stale-API probes for library maintainers."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Sandeep Sirodia" }]
+requires-python = ">=3.11"
+keywords = ["llm", "library-maintainers", "deprecation", "api", "evals", "llms-txt"]
+classifiers = ["Programming Language :: Python :: 3", "Topic :: Software Development :: Testing", "Environment :: Console"]
+
+[project.urls]
+Homepage = "https://github.com/sandeepsirodia/cutoff"
+
+[project.scripts]
+cutoff = "cutoff:main"
+
+[tool.setuptools]
+py-modules = ["cutoff"]
