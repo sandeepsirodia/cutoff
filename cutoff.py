@@ -299,6 +299,20 @@ def per_probe(results):
     return {k: dict(v, rate=v["stale"] / v["n"]) for k, v in out.items()}
 
 
+def release_sections(text):
+    """Split a changelog into release sections, in document order (newest first in practice).
+    A release heading is a level-1/2 heading that contains a version number or 'Unreleased'."""
+    parts, cur = [], []
+    for line in text.splitlines():
+        if re.match(r"^#{1,2}\s+.*(\d+\.\d+|unreleased)", line, re.I) and cur:
+            parts.append("\n".join(cur))
+            cur = []
+        cur.append(line)
+    if cur:
+        parts.append("\n".join(cur))
+    return parts
+
+
 def draft_context(lib, results, changelog_text):
     """Deterministic: the changelog lines that mention the symbols models actually tripped over."""
     hit = set()
@@ -307,9 +321,18 @@ def draft_context(lib, results, changelog_text):
             for sym in lib["removed"] + lib["deprecated"]:
                 if re.search(r"\b%s\b" % re.escape(sym.split(".")[-1]), (r["detail"] or "") + " " + (r["stale_line"] or "")):
                     hit.add(sym)
-    # match on the whole changelog line: `connect(timeout_s=…)` mentions timeout_s even though its symbol is connect
-    lines = [line for _, line, _ in changelog_entries(changelog_text)
-             if any(re.search(r"\b%s\b" % re.escape(h.split(".")[-1]), line) for h in hit)]
+    # For each API a model tripped over, take the entries from the NEWEST release section that mentions it
+    # (changelogs are newest-first). Older entries describe superseded advice ("proxies is deprecated, still
+    # works") and would contradict the current API. Matching is on the whole line: `connect(timeout_s=…)`
+    # mentions timeout_s even though its symbol is `connect`.
+    lines = []
+    for h in sorted(hit):
+        word = re.compile(r"\b%s\b" % re.escape(h.split(".")[-1]))
+        for section in release_sections(changelog_text):
+            found = [line for _, line, _ in changelog_entries(section) if word.search(line)]
+            if found:
+                lines += [line for line in found if line not in lines]
+                break
     if not lines:
         return None
     return "# %s: API changes that AI assistants get wrong\n\n%s\n" % (lib["name"], "\n".join(

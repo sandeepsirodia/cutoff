@@ -246,6 +246,44 @@ class TestOutagesAreNotStaleness(unittest.TestCase):
         self.assertEqual(results(repo, fake("pandasish", code_))[0]["status"], "deprecated-api")
 
 
+class TestSnippetUsesOnlyTheNewestRelease(unittest.TestCase):
+    """Regression from the real httpx run: the snippet included superseded advice from old releases
+    ("Switched to proxies=httpx.Proxy(...)"), contradicting the current API."""
+
+    HTTPX_LIKE = textwrap.dedent("""\
+        # Changelog
+
+        ## 0.28.0 (28th November, 2024)
+
+        * The `verify` argument as a string argument is now deprecated and will raise warnings.
+        * The deprecated `proxies` argument has now been removed.
+
+        ## 0.26.0 (20th December, 2023)
+
+        * The `proxy` argument was added. You should use the `proxy` argument instead of the deprecated `proxies`.
+        * The `proxies` argument is now deprecated. It will still continue to work, but it will be removed.
+
+        ## 0.13.0
+
+        - Switched to `proxies=httpx.Proxy(...)` for proxy configuration.
+    """)
+
+    def test_newest_mention_wins(self):
+        lib = {"name": "httpx", "removed": ["proxies"], "deprecated": ["verify"]}
+        results_ = [{"status": "removed-api", "detail": "unexpected keyword argument 'proxies'", "stale_line": ""},
+                    {"status": "deprecated-api", "detail": "`verify=<str>` is deprecated", "stale_line": ""}]
+        ctx = cutoff.draft_context(lib, results_, self.HTTPX_LIKE)
+        self.assertIn("The deprecated `proxies` argument has now been removed.", ctx)
+        self.assertIn("`verify` argument as a string argument is now deprecated", ctx)
+        self.assertNotIn("still continue to work", ctx)
+        self.assertNotIn("Switched to `proxies=httpx.Proxy", ctx)
+
+    def test_release_sections(self):
+        secs = cutoff.release_sections(self.HTTPX_LIKE)
+        self.assertEqual(len(secs), 4)                      # preamble + 3 releases
+        self.assertIn("0.28.0", secs[1])
+
+
 class TestUnits(unittest.TestCase):
     def test_extract_code(self):
         self.assertEqual(cutoff.extract_code("Here:\n```python\nx = 1\n```\nDone."), "x = 1\n")
