@@ -1,0 +1,396 @@
+{
+  "stale": {
+    "claude:haiku": {
+      "stale": 10,
+      "n": 15,
+      "skipped": 0,
+      "rate": 0.6666666666666666,
+      "ci": [
+        0.4171354773851979,
+        0.8482367556028528
+      ]
+    },
+    "claude:opus": {
+      "stale": 0,
+      "n": 15,
+      "skipped": 0,
+      "rate": 0.0,
+      "ci": [
+        0.0,
+        0.20388330103584854
+      ]
+    },
+    "claude:sonnet": {
+      "stale": 0,
+      "n": 15,
+      "skipped": 0,
+      "rate": 0.0,
+      "ci": [
+        0.0,
+        0.20388330103584854
+      ]
+    }
+  },
+  "results": [
+    {
+      "probe": "proxy",
+      "model": "claude:haiku",
+      "sample": 0,
+      "status": "removed-api",
+      "detail": "TypeError: Client.__init__() got an unexpected keyword argument 'proxies'",
+      "stale_line": "client = httpx.Client(proxies=\"http://localhost:8080\")"
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:haiku",
+      "sample": 1,
+      "status": "removed-api",
+      "detail": "TypeError: Client.__init__() got an unexpected keyword argument 'proxies'",
+      "stale_line": "client = httpx.Client(proxies=\"http://localhost:8080\")"
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:haiku",
+      "sample": 2,
+      "status": "removed-api",
+      "detail": "TypeError: Client.__init__() got an unexpected keyword argument 'proxies'",
+      "stale_line": "client = httpx.Client("
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:haiku",
+      "sample": 3,
+      "status": "removed-api",
+      "detail": "TypeError: Client.__init__() got an unexpected keyword argument 'proxies'",
+      "stale_line": "client = httpx.Client(proxies={"
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:haiku",
+      "sample": 4,
+      "status": "removed-api",
+      "detail": "TypeError: Client.__init__() got an unexpected keyword argument 'proxies'",
+      "stale_line": "client = httpx.Client(proxies=\"http://localhost:8080\")"
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:sonnet",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:sonnet",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:sonnet",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:sonnet",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:sonnet",
+      "sample": 4,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:opus",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:opus",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:opus",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:opus",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "proxy",
+      "model": "claude:opus",
+      "sample": 4,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:haiku",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:haiku",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:haiku",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:haiku",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:haiku",
+      "sample": 4,
+      "status": "crash",
+      "detail": "KeyError: ''",
+      "stale_line": "response = client.get('/')"
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:sonnet",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:sonnet",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:sonnet",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:sonnet",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:sonnet",
+      "sample": 4,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:opus",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:opus",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:opus",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:opus",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "wsgi-app",
+      "model": "claude:opus",
+      "sample": 4,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:haiku",
+      "sample": 0,
+      "status": "deprecated-api",
+      "detail": "DeprecationWarning: `verify=<str>` is deprecated. Use `verify=ssl.create_default_context(cafile=...)` or `verify=ssl.create_default_context(capath=...)` instead.",
+      "stale_line": "client = httpx.Client(verify=certifi.where())"
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:haiku",
+      "sample": 1,
+      "status": "deprecated-api",
+      "detail": "DeprecationWarning: `verify=<str>` is deprecated. Use `verify=ssl.create_default_context(cafile=...)` or `verify=ssl.create_default_context(capath=...)` instead.",
+      "stale_line": "client = httpx.Client(verify=certifi.where())"
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:haiku",
+      "sample": 2,
+      "status": "deprecated-api",
+      "detail": "DeprecationWarning: `verify=<str>` is deprecated. Use `verify=ssl.create_default_context(cafile=...)` or `verify=ssl.create_default_context(capath=...)` instead.",
+      "stale_line": "client = httpx.Client(verify=certifi.where())"
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:haiku",
+      "sample": 3,
+      "status": "deprecated-api",
+      "detail": "DeprecationWarning: `verify=<str>` is deprecated. Use `verify=ssl.create_default_context(cafile=...)` or `verify=ssl.create_default_context(capath=...)` instead.",
+      "stale_line": "client = httpx.Client(verify=certifi.where())"
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:haiku",
+      "sample": 4,
+      "status": "deprecated-api",
+      "detail": "DeprecationWarning: `verify=<str>` is deprecated. Use `verify=ssl.create_default_context(cafile=...)` or `verify=ssl.create_default_context(capath=...)` instead.",
+      "stale_line": "client = httpx.Client(verify=certifi.where())"
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:sonnet",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:sonnet",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:sonnet",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:sonnet",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:sonnet",
+      "sample": 4,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:opus",
+      "sample": 0,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:opus",
+      "sample": 1,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:opus",
+      "sample": 2,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:opus",
+      "sample": 3,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    },
+    {
+      "probe": "custom-ca",
+      "model": "claude:opus",
+      "sample": 4,
+      "status": "pass",
+      "detail": "",
+      "stale_line": null
+    }
+  ]
+}

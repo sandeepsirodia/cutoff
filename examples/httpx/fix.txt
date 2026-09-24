@@ -1,0 +1,15 @@
+Context snippet drafted from your changelog:
+
+# httpx: API changes that AI assistants get wrong
+
+* The deprecated `proxies` argument has now been removed.
+* The `proxy` argument was added. You should use the `proxy` argument instead of the deprecated `proxies`, or use `mounts=` for more complex configurations. (#2879)
+* The `verify` argument as a string argument is now deprecated and will raise warnings.
+- The per-request `cert`, `verify`, and `trust_env` arguments are escalated from raising errors if used, to no longer being available. These arguments should be used on a per-client instance instead, or in the top-level API.
+- When using a client instance, the per-request usage of `verify`, `cert`, and `trust_env` have now escalated from raising a warning to raising an error. You should set these arguments on the client instead. (Pull #617)
+
+Before → after, on the probes that went stale:
+  custom-ca            claude:haiku       stale 10/10 → 4/10
+  proxy                claude:haiku       stale 10/10 → 0/10
+
+Wrote cutoff-context.md. Paste it into your llms.txt or docs; cutoff never edits them for you.

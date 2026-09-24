@@ -1,0 +1,29 @@
+[library]
+name = "httpx"
+install = "pip install -q httpx==0.28.1"
+removed = ["proxies", "app"]
+deprecated = ["verify"]
+
+[[probe]]
+id = "proxy"
+task = "Create an httpx.Client that sends all of its requests through the HTTP proxy at http://localhost:8080. Store the client in a module-level variable named `client`. Do not make any requests."
+check = """
+import httpx, solution
+assert isinstance(solution.client, httpx.Client)
+"""
+
+[[probe]]
+id = "wsgi-app"
+task = "Define a minimal WSGI application `app` that answers every request with the body 'ok'. Then use httpx to call it in-process (no network, no server): make a GET request to '/' and store the response body text in a module-level variable named `text`."
+check = """
+import solution
+assert solution.text == "ok"
+"""
+
+[[probe]]
+id = "custom-ca"
+task = "Create an httpx.Client that verifies TLS certificates using the CA bundle file located at certifi.where(). Store the client in a module-level variable named `client`. Do not make any requests."
+check = """
+import httpx, solution
+assert isinstance(solution.client, httpx.Client)
+"""

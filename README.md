@@ -24,35 +24,44 @@ The model learned your API from two years of blog posts, Stack Overflow answers 
 
 **cutoff is that test.** It asks models to write small programs with your library, **runs them against your real current version**, and shows exactly which models reach for removed or deprecated APIs. Then it drafts the fix and **proves the fix works.**
 
+## A real run: httpx 0.28
+
+httpx 0.28 (November 2024) removed the `proxies=` and `app=` arguments and deprecated `verify=<string>`. I asked three Claude models for small httpx programs, 5 samples per probe, and ran every one against the real httpx 0.28.1:
+
+<p align="center"><img src="assets/httpx.svg" alt="Stale httpx calls: Claude Haiku 10 of 15, Claude Sonnet 0 of 15, Claude Opus 0 of 15" width="760"></p>
+
 ```console
-$ cutoff run --model claude:sonnet --model claude:haiku -k 10
+$ cutoff run --model claude:haiku --model claude:sonnet --model claude:opus -k 5
 Stale-API rate (removed or deprecated calls), by model:
-  claude:haiku            40%  (4/10, 95% CI 17–69%)
-  claude:sonnet           10%  (1/10, 95% CI 2–40%)
+  claude:haiku            67%  (10/15, 95% CI 42–85%)
+  claude:opus              0%  (0/15, 95% CI 0–20%)
+  claude:sonnet            0%  (0/15, 95% CI 0–20%)
 
 What stale code looks like:
-  [claude:haiku] connect-timeout
-      result = mylib.connect("db", timeout_s=5)
-      → TypeError: connect() got an unexpected keyword argument 'timeout_s'
+  [claude:haiku] proxy
+      client = httpx.Client(proxies="http://localhost:8080")
+      → TypeError: Client.__init__() got an unexpected keyword argument 'proxies'
+  [claude:haiku] custom-ca
+      client = httpx.Client(verify=certifi.where())
+      → DeprecationWarning: `verify=<str>` is deprecated. Use `verify=ssl.create_default_context(cafile=...)` …
 ```
-<sub>*Illustrative output, from the test fixture's shape. Run it on your library for real numbers.*</sub>
+
+The bigger models write current httpx. The small, fast one writes the 2023 API: every single time for proxies, and every time for custom CA bundles.
 
 ## The fix loop
 
+`cutoff fix` picks the lines of **your own changelog** that mention the APIs models got wrong (the newest release that mentions each one, plus any line saying what to use *instead*), reruns only the failing probes with that context, and shows before → after:
+
+<p align="center"><img src="assets/httpx-fix.svg" alt="With the changelog snippet, stale proxies= calls fell from 10 of 10 to 0 of 10, and stale verify= calls from 10 of 10 to 4 of 10" width="760"></p>
+
 ```console
 $ cutoff fix --model claude:haiku -k 10
-Context snippet drafted from your changelog:
-
-  # mylib: API changes that AI assistants get wrong
-  - `connect(timeout_s=…)` was renamed to `connect(timeout=…)`.
-
 Before → after, on the probes that went stale:
-  connect-timeout      claude:haiku       stale 4/10 → 0/10
-
-Wrote cutoff-context.md. Paste it into your llms.txt or docs; cutoff never edits them for you.
+  custom-ca            claude:haiku       stale 10/10 → 4/10
+  proxy                claude:haiku       stale 10/10 → 0/10
 ```
 
-The snippet isn't written by an LLM. It's the exact lines of **your own changelog** that mention the APIs models actually tripped over, and nothing more. cutoff then reruns only the failing probes with that context and shows you before → after. If the snippet doesn't help, you'll see that too.
+No LLM writes the snippet, so it can't invent API advice. For `proxies=`, two sentences from httpx's changelog fixed it completely. For `verify=`, they helped but didn't finish the job, and cutoff shows you that instead of hiding it. The config, all 45 raw samples and the fix output are in [`examples/httpx/`](examples/httpx/).
 
 ## Set it up in two minutes
 
@@ -107,7 +116,7 @@ cutoff run --model claude:haiku -k 10 --ci                # every release: exit 
 - **Python libraries only** for now. JS/TS needs its own isolation, so it gets its own version rather than a half-working one here.
 - The network block covers Python sockets, not subprocesses a program might spawn. It's a guard against accidents, not a security sandbox. Don't point cutoff at models you don't trust with code execution on your machine.
 - A `removed-api` verdict needs the symbol in your `removed` list; unlisted breakages show up as `crash` or `wrong`.
-- No real-library results are published here yet. The first ones will be run with maintainers' permission and linked from this README.
+- The httpx numbers are one library, three probes and small samples (5 or 10 per cell); read them as a demonstration of the method, not a model ranking.
 
 ## Prior art, and what's new here
 
