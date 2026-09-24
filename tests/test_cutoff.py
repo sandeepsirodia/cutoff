@@ -192,6 +192,18 @@ class TestInstall(unittest.TestCase):
         self.assertEqual(set(glob.glob(os.path.join(tempfile.gettempdir(), "cutoff-venv-*"))) - before, set())
 
 
+class TestCleanRoom(unittest.TestCase):
+    def test_claude_runs_without_user_settings(self):
+        from unittest import mock
+        seen = {}
+        fake_run = lambda cmd, **k: seen.setdefault("cmd", cmd) and mock.Mock(stdout='{"result": ""}')  # noqa: E731
+        with mock.patch.object(cutoff.subprocess, "run", fake_run), mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+            cutoff.Model("claude:haiku").ask("p", 5, 0)
+        self.assertIn("--setting-sources", seen["cmd"])
+        self.assertEqual(seen["cmd"][seen["cmd"].index("--setting-sources") + 1], "")
+        self.assertIn("--tools", seen["cmd"])
+
+
 class TestUnits(unittest.TestCase):
     def test_extract_code(self):
         self.assertEqual(cutoff.extract_code("Here:\n```python\nx = 1\n```\nDone."), "x = 1\n")

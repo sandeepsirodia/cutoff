@@ -182,7 +182,10 @@ class Model:
 
     def ask(self, prompt, timeout, sample):
         if self.kind == "claude":
-            cmd = ["claude", "-p", prompt, "--tools", "", "--output-format", "json"] + (["--model", self.arg] if self.arg else [])
+            # Clean room: no user hooks, CLAUDE.md or output styles, so results measure the model, not your setup.
+            cmd = ["claude", "-p", prompt, "--tools", "", "--output-format", "json", "--no-session-persistence",
+                   *(["--bare"] if os.environ.get("ANTHROPIC_API_KEY") else ["--setting-sources", ""])]
+            cmd += ["--model", self.arg] if self.arg else []
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
             try:
                 return json.loads(r.stdout).get("result", "")
