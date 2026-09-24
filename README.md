@@ -108,6 +108,12 @@ cutoff run --model claude:haiku -k 10 --ci                # every release: exit 
 - A `removed-api` verdict needs the symbol in your `removed` list; unlisted breakages show up as `crash` or `wrong`.
 - No real-library results are published here yet. The first ones will be run with maintainers' permission and linked from this README.
 
+## Prior art, and what's new here
+
+- **Research:** [*LLMs Meet Library Evolution*](https://arxiv.org/html/2406.09834) (ICSE 2025) measured deprecated-API use by LLMs across popular Python libraries. cutoff turns that kind of study into a tool one maintainer can run in CI.
+- **[APIScanner](https://arxiv.org/abs/2102.09251)** flags deprecated API use in your editor. It's static, and aimed at users rather than maintainers.
+- **Docs-in-context services** (llms.txt, MCP doc servers) *deliver* current docs to models. cutoff *measures* whether models get your API wrong, and whether a snippet fixes it.
+
 <details>
 <summary><b>Development</b></summary>
 
