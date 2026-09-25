@@ -28,7 +28,7 @@ The model learned your API from two years of blog posts, Stack Overflow answers 
 
 httpx 0.28 (November 2024) removed the `proxies=` and `app=` arguments and deprecated `verify=<string>`. I asked three Claude models for small httpx programs, 5 samples per probe, and ran every one against the real httpx 0.28.1:
 
-<p align="center"><img src="assets/httpx.svg" alt="Stale httpx calls: Claude Haiku 10 of 15, Claude Sonnet 0 of 15, Claude Opus 0 of 15" width="760"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/sandeepsirodia/cutoff/main/assets/httpx.svg" alt="Stale httpx calls: Claude Haiku 10 of 15, Claude Sonnet 0 of 15, Claude Opus 0 of 15" width="760"></p>
 
 ```console
 $ cutoff run --model claude:haiku --model claude:sonnet --model claude:opus -k 5
@@ -52,7 +52,7 @@ The bigger models write current httpx. The small, fast one writes the 2023 API: 
 
 `cutoff fix` picks the lines of **your own changelog** that mention the APIs models got wrong (the newest release that mentions each one, plus any line saying what to use *instead*), reruns only the failing probes with that context, and shows before → after:
 
-<p align="center"><img src="assets/httpx-fix.svg" alt="With the changelog snippet, stale proxies= calls fell from 10 of 10 to 0 of 10, and stale verify= calls from 10 of 10 to 4 of 10" width="760"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/sandeepsirodia/cutoff/main/assets/httpx-fix.svg" alt="With the changelog snippet, stale proxies= calls fell from 10 of 10 to 0 of 10, and stale verify= calls from 10 of 10 to 4 of 10" width="760"></p>
 
 ```console
 $ cutoff fix --model claude:haiku -k 10
