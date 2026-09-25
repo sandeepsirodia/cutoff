@@ -66,7 +66,7 @@ No LLM writes the snippet, so it can't invent API advice. For `proxies=`, two se
 ## Set it up in two minutes
 
 ```bash
-uv tool install git+https://github.com/sandeepsirodia/cutoff     # Python 3.11+
+uv tool install cutoff     # Python 3.11+
 cutoff init                                                       # drafts cutoff.toml from your CHANGELOG
 ```
 
